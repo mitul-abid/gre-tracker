@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>GRE Command Center</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     * {
       box-sizing: border-box;
@@ -382,7 +383,7 @@
 </head>
 <body>
   <aside class="sidebar">
-    <h2>GRE Tracker</h2>
+    <h2>GRE System</h2>
     <div class="nav-item active" onclick="showSection('tracker', event)">📅 Tracker</div>
     <div class="nav-item" onclick="showSection('performance', event)">📈 Performance</div>
     <div class="nav-item" onclick="showSection('study', event)">📚 Study Log</div>
@@ -391,7 +392,7 @@
   <main class="main">
     <div class="topbar">
       <h1 id="pageTitle">Tracker</h1>
-      <p id="pageSubtitle">Track daily study and manage mock test.</p>
+      <p id="pageSubtitle">Track daily study and manage your Day 5 mock test.</p>
     </div>
 
     <section id="tracker" class="section active">
@@ -642,7 +643,11 @@
   </div>
 
   <script>
-    let studyData = JSON.parse(localStorage.getItem("studyData")) || [];
+    const SUPABASE_URL = "https://cjgtazztvzhlfegogklp.supabase.co";
+    const SUPABASE_KEY = "sb_publishable_E2Djln0NXyd9rni-tyAXuw_gktOgK_S";
+    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    let studyData = [];
     let editStudyIndex = -1;
     let mockConfirmed = false;
     let performanceChartInstance = null;
@@ -672,11 +677,8 @@
       document.getElementById("pageTitle").innerText = sectionMeta[id].title;
       document.getElementById("pageSubtitle").innerText = sectionMeta[id].subtitle;
 
-      if (id === "performance") {
-        renderPerformance();
-      } else if (id === "study") {
-        renderStudy();
-      }
+      if (id === "performance") renderPerformance();
+      if (id === "study") renderStudy();
     }
 
     function buildWeekOptions() {
@@ -693,29 +695,30 @@
         html += `
           <tr>
             <td>Day ${i}</td>
-            <td><input type="checkbox" class="task d${i}"></td>
-            <td><input type="checkbox" class="task d${i}"></td>
-            <td><input type="checkbox" class="task d${i}"></td>
-            <td><input type="checkbox" class="task d${i}"></td>
-            <td><input type="checkbox" class="task d${i}"></td>
+            <td><input type="checkbox" class="task d${i}" data-type="vocab" onchange="saveDay(${i})"></td>
+            <td><input type="checkbox" class="task d${i}" data-type="tc" onchange="saveDay(${i})"></td>
+            <td><input type="checkbox" class="task d${i}" data-type="se" onchange="saveDay(${i})"></td>
+            <td><input type="checkbox" class="task d${i}" data-type="rc" onchange="saveDay(${i})"></td>
+            <td><input type="checkbox" class="task d${i}" data-type="quant" onchange="saveDay(${i})"></td>
             <td><input type="checkbox" id="done_${i}"></td>
           </tr>
         `;
       }
       document.getElementById("trackerTable").innerHTML = html;
-
-      document.querySelectorAll(".task").forEach(cb => {
-        cb.addEventListener("change", updateTracker);
-      });
     }
 
-    function updateTracker() {
+    function updateTrackerSummary() {
       let completedDays = 0;
 
       for (let i = 1; i <= 4; i++) {
-        const tasks = document.querySelectorAll(".d" + i);
-        const checkedCount = [...tasks].filter(t => t.checked).length;
-        const doneBox = document.getElementById("done_" + i);
+        const vocab = document.querySelector(`.d${i}[data-type="vocab"]`)?.checked || false;
+        const tc = document.querySelector(`.d${i}[data-type="tc"]`)?.checked || false;
+        const se = document.querySelector(`.d${i}[data-type="se"]`)?.checked || false;
+        const rc = document.querySelector(`.d${i}[data-type="rc"]`)?.checked || false;
+        const quant = document.querySelector(`.d${i}[data-type="quant"]`)?.checked || false;
+
+        const checkedCount = [vocab, tc, se, rc, quant].filter(Boolean).length;
+        const doneBox = document.getElementById(`done_${i}`);
 
         if (checkedCount >= 4) {
           doneBox.checked = true;
@@ -727,47 +730,74 @@
 
       document.getElementById("completedDays").innerText = completedDays;
       document.getElementById("completionPercent").innerText = Math.round((completedDays / 4) * 100) + "%";
-
-      saveTracker();
     }
 
     function getCurrentWeek() {
-      return document.getElementById("weekSelect").value;
+      return Number(document.getElementById("weekSelect").value);
     }
 
-    function saveTracker() {
-      const taskData = [];
+    async function saveDay(day) {
+      const payload = {
+        week: getCurrentWeek(),
+        day,
+        vocab: document.querySelector(`.d${day}[data-type="vocab"]`).checked,
+        tc: document.querySelector(`.d${day}[data-type="tc"]`).checked,
+        se: document.querySelector(`.d${day}[data-type="se"]`).checked,
+        rc: document.querySelector(`.d${day}[data-type="rc"]`).checked,
+        quant: document.querySelector(`.d${day}[data-type="quant"]`).checked
+      };
 
-      for (let i = 1; i <= 4; i++) {
-        const tasks = document.querySelectorAll(".d" + i);
-        taskData.push([...tasks].map(t => t.checked));
+      const { error } = await supabaseClient
+        .from("daily_tracker")
+        .upsert(payload, { onConflict: "week,day" });
+
+      if (error) {
+        alert("Failed to save daily tracker.");
+        console.error(error);
+        return;
       }
 
-      localStorage.setItem("tracker_" + getCurrentWeek(), JSON.stringify({ tasks: taskData }));
+      updateTrackerSummary();
     }
 
-    function loadTracker() {
-      const raw = localStorage.getItem("tracker_" + getCurrentWeek());
-
+    async function loadTracker() {
       for (let i = 1; i <= 4; i++) {
-        const tasks = document.querySelectorAll(".d" + i);
-        tasks.forEach(t => t.checked = false);
-        document.getElementById("done_" + i).checked = false;
+        ["vocab", "tc", "se", "rc", "quant"].forEach(type => {
+          const el = document.querySelector(`.d${i}[data-type="${type}"]`);
+          if (el) el.checked = false;
+        });
+        const doneBox = document.getElementById(`done_${i}`);
+        if (doneBox) doneBox.checked = false;
       }
 
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (parsed.tasks) {
-          for (let i = 1; i <= 4; i++) {
-            const tasks = document.querySelectorAll(".d" + i);
-            tasks.forEach((t, j) => {
-              t.checked = !!parsed.tasks[i - 1][j];
-            });
-          }
-        }
+      const { data, error } = await supabaseClient
+        .from("daily_tracker")
+        .select("*")
+        .eq("week", getCurrentWeek());
+
+      if (error) {
+        console.error(error);
+        updateTrackerSummary();
+        return;
       }
 
-      updateTracker();
+      (data || []).forEach(row => {
+        const day = row.day;
+        const mapping = {
+          vocab: row.vocab,
+          tc: row.tc,
+          se: row.se,
+          rc: row.rc,
+          quant: row.quant
+        };
+
+        Object.entries(mapping).forEach(([type, val]) => {
+          const el = document.querySelector(`.d${day}[data-type="${type}"]`);
+          if (el) el.checked = !!val;
+        });
+      });
+
+      updateTrackerSummary();
     }
 
     function calculatePercent(total, obtained) {
@@ -789,13 +819,8 @@
 
       document.getElementById("verbalPercent").value = v ? v + "%" : "";
       document.getElementById("quantPercent").value = q ? q + "%" : "";
-
       document.getElementById("currentVerbalDisplay").innerText = v ? v + "%" : "-";
       document.getElementById("currentQuantDisplay").innerText = q ? q + "%" : "-";
-    }
-
-    function getMockKey() {
-      return "mock_week_" + getCurrentWeek();
     }
 
     function setMockInputsDisabled(disabled) {
@@ -808,17 +833,16 @@
 
     function updateMockButtons() {
       document.getElementById("confirmMockBtn").style.display = mockConfirmed ? "none" : "inline-block";
-      document.getElementById("editMockBtn").style.display = mockConfirmed ? "inline-block" : "none";
-      document.getElementById("deleteMockBtn").style.display = mockConfirmed ? "inline-block" : "none";
+      document.getElementById("editMockBtn").style.display = mockConfirmed ? "inline-block" : "inline-block";
+      document.getElementById("deleteMockBtn").style.display = mockConfirmed ? "inline-block" : "inline-block";
       document.getElementById("mockStatusWrap").style.display = mockConfirmed ? "block" : "none";
     }
 
-    function confirmMock() {
-      const verbalTotal = document.getElementById("verbalTotal").value;
-      const verbalObtained = document.getElementById("verbalObtained").value;
-      const quantTotal = document.getElementById("quantTotal").value;
-      const quantObtained = document.getElementById("quantObtained").value;
-      const reviewNote = document.getElementById("reviewNote").value;
+    async function confirmMock() {
+      const verbalTotal = Number(document.getElementById("verbalTotal").value);
+      const verbalObtained = Number(document.getElementById("verbalObtained").value);
+      const quantTotal = Number(document.getElementById("quantTotal").value);
+      const quantObtained = Number(document.getElementById("quantObtained").value);
 
       if (!verbalTotal || !verbalObtained || !quantTotal || !quantObtained) {
         alert("Please fill in total and obtained marks for both Verbal and Quant.");
@@ -829,17 +853,25 @@
 
       const payload = {
         week: getCurrentWeek(),
-        verbalTotal,
-        verbalObtained,
-        verbalPercent: document.getElementById("verbalPercent").value,
-        quantTotal,
-        quantObtained,
-        quantPercent: document.getElementById("quantPercent").value,
-        reviewNote,
-        confirmed: true
+        verbal_total: verbalTotal,
+        verbal_obtained: verbalObtained,
+        quant_total: quantTotal,
+        quant_obtained: quantObtained,
+        verbal_percent: parseFloat(calculatePercent(verbalTotal, verbalObtained)),
+        quant_percent: parseFloat(calculatePercent(quantTotal, quantObtained)),
+        review_note: document.getElementById("reviewNote").value
       };
 
-      localStorage.setItem(getMockKey(), JSON.stringify(payload));
+      const { error } = await supabaseClient
+        .from("mock_results")
+        .upsert(payload, { onConflict: "week" });
+
+      if (error) {
+        alert("Failed to save mock result.");
+        console.error(error);
+        return;
+      }
+
       mockConfirmed = true;
       setMockInputsDisabled(true);
       updateMockButtons();
@@ -852,11 +884,20 @@
       updateMockButtons();
     }
 
-    function deleteMock() {
+    async function deleteMock() {
       const ok = confirm("Delete Day 5 mock test for this week?");
       if (!ok) return;
 
-      localStorage.removeItem(getMockKey());
+      const { error } = await supabaseClient
+        .from("mock_results")
+        .delete()
+        .eq("week", getCurrentWeek());
+
+      if (error) {
+        alert("Failed to delete mock result.");
+        console.error(error);
+        return;
+      }
 
       document.getElementById("verbalTotal").value = "";
       document.getElementById("verbalObtained").value = "";
@@ -873,9 +914,7 @@
       renderPerformance();
     }
 
-    function loadMock() {
-      const raw = localStorage.getItem(getMockKey());
-
+    async function loadMock() {
       document.getElementById("verbalTotal").value = "";
       document.getElementById("verbalObtained").value = "";
       document.getElementById("verbalPercent").value = "";
@@ -887,41 +926,53 @@
       mockConfirmed = false;
       setMockInputsDisabled(false);
 
-      if (raw) {
-        const data = JSON.parse(raw);
-        document.getElementById("verbalTotal").value = data.verbalTotal || "";
-        document.getElementById("verbalObtained").value = data.verbalObtained || "";
-        document.getElementById("verbalPercent").value = data.verbalPercent || "";
-        document.getElementById("quantTotal").value = data.quantTotal || "";
-        document.getElementById("quantObtained").value = data.quantObtained || "";
-        document.getElementById("quantPercent").value = data.quantPercent || "";
-        document.getElementById("reviewNote").value = data.reviewNote || "";
-        mockConfirmed = !!data.confirmed;
-        setMockInputsDisabled(mockConfirmed);
+      const { data, error } = await supabaseClient
+        .from("mock_results")
+        .select("*")
+        .eq("week", getCurrentWeek())
+        .maybeSingle();
+
+      if (error) {
+        console.error(error);
+        updateMockButtons();
+        updateMockPercentages();
+        return;
+      }
+
+      if (data) {
+        document.getElementById("verbalTotal").value = data.verbal_total ?? "";
+        document.getElementById("verbalObtained").value = data.verbal_obtained ?? "";
+        document.getElementById("quantTotal").value = data.quant_total ?? "";
+        document.getElementById("quantObtained").value = data.quant_obtained ?? "";
+        document.getElementById("reviewNote").value = data.review_note ?? "";
+        mockConfirmed = true;
+        setMockInputsDisabled(true);
       }
 
       updateMockButtons();
       updateMockPercentages();
     }
 
-    function getAllMockData() {
-      const results = [];
-      for (let i = 1; i <= 12; i++) {
-        const raw = localStorage.getItem("mock_week_" + i);
-        if (raw) {
-          const d = JSON.parse(raw);
-          results.push({
-            week: i,
-            verbalTotal: Number(d.verbalTotal || 0),
-            verbalObtained: Number(d.verbalObtained || 0),
-            verbalPercent: parseFloat(String(d.verbalPercent || "").replace("%", "")) || 0,
-            quantTotal: Number(d.quantTotal || 0),
-            quantObtained: Number(d.quantObtained || 0),
-            quantPercent: parseFloat(String(d.quantPercent || "").replace("%", "")) || 0
-          });
-        }
+    async function getAllMockData() {
+      const { data, error } = await supabaseClient
+        .from("mock_results")
+        .select("*")
+        .order("week", { ascending: true });
+
+      if (error) {
+        console.error(error);
+        return [];
       }
-      return results;
+
+      return (data || []).map(d => ({
+        week: Number(d.week),
+        verbalTotal: Number(d.verbal_total || 0),
+        verbalObtained: Number(d.verbal_obtained || 0),
+        verbalPercent: Number(d.verbal_percent || 0),
+        quantTotal: Number(d.quant_total || 0),
+        quantObtained: Number(d.quant_obtained || 0),
+        quantPercent: Number(d.quant_percent || 0)
+      }));
     }
 
     function clamp(num, min, max) {
@@ -940,15 +991,9 @@
       return total / weightSum;
     }
 
-    function mapPercentToGRE(percent, section) {
+    function mapPercentToGRE(percent) {
       const p = clamp(percent, 0, 100);
-      let score;
-      if (section === "verbal") {
-        score = 130 + (p / 100) * 40;
-      } else {
-        score = 130 + (p / 100) * 40;
-      }
-      return Math.round(clamp(score, 130, 170));
+      return Math.round(clamp(130 + (p / 100) * 40, 130, 170));
     }
 
     function buildAlerts(data) {
@@ -977,7 +1022,7 @@
       } else if (latestQuant >= 80) {
         alerts.push({
           type: "good",
-          text: "Quant is strong in the latest mock. Keep accuracy stable and protect against careless mistakes."
+          text: "Quant is strong in the latest mock. Protect accuracy and avoid careless mistakes."
         });
       }
 
@@ -995,14 +1040,12 @@
 
       if (data.length >= 2) {
         const prev = data[data.length - 2];
-
         if (latest.verbalPercent > prev.verbalPercent && latest.quantPercent > prev.quantPercent) {
           alerts.push({
             type: "good",
             text: "Both Verbal and Quant improved compared to the previous mock."
           });
         }
-
         if (latest.verbalPercent < prev.verbalPercent && latest.quantPercent < prev.quantPercent) {
           alerts.push({
             type: "warn",
@@ -1025,8 +1068,8 @@
       return alerts;
     }
 
-    function renderPerformance() {
-      const data = getAllMockData();
+    async function renderPerformance() {
+      const data = await getAllMockData();
       const performanceTable = document.getElementById("performanceTable");
       performanceTable.innerHTML = "";
 
@@ -1034,7 +1077,6 @@
       let latestVerbal = "-";
       let latestQuant = "-";
       let bestWeek = "-";
-
       let bestCombined = -1;
 
       for (let i = 1; i <= 12; i++) {
@@ -1088,8 +1130,8 @@
       const weightedVerbal = weightedAverage(verbalSeries);
       const weightedQuant = weightedAverage(quantSeries);
 
-      document.getElementById("predictedVerbal").innerText = mapPercentToGRE(weightedVerbal, "verbal");
-      document.getElementById("predictedQuant").innerText = mapPercentToGRE(weightedQuant, "quant");
+      document.getElementById("predictedVerbal").innerText = mapPercentToGRE(weightedVerbal);
+      document.getElementById("predictedQuant").innerText = mapPercentToGRE(weightedQuant);
 
       const alerts = buildAlerts(data);
       const alertsWrap = document.getElementById("alertsWrap");
@@ -1104,9 +1146,7 @@
 
       const ctx = document.getElementById("performanceChart").getContext("2d");
 
-      if (performanceChartInstance) {
-        performanceChartInstance.destroy();
-      }
+      if (performanceChartInstance) performanceChartInstance.destroy();
 
       performanceChartInstance = new Chart(ctx, {
         type: "line",
@@ -1140,7 +1180,23 @@
       });
     }
 
-    function saveStudy() {
+    async function loadStudy() {
+      const { data, error } = await supabaseClient
+        .from("study_logs")
+        .select("*")
+        .order("id", { ascending: true });
+
+      if (error) {
+        console.error(error);
+        studyData = [];
+      } else {
+        studyData = data || [];
+      }
+
+      renderStudy();
+    }
+
+    async function saveStudy() {
       const entry = {
         date: new Date().toLocaleDateString(),
         type: document.getElementById("studyType").value,
@@ -1156,15 +1212,33 @@
       }
 
       if (editStudyIndex >= 0) {
-        studyData[editStudyIndex] = entry;
+        const existing = studyData[editStudyIndex];
+        const { error } = await supabaseClient
+          .from("study_logs")
+          .update(entry)
+          .eq("id", existing.id);
+
+        if (error) {
+          alert("Failed to update study record.");
+          console.error(error);
+          return;
+        }
+
         editStudyIndex = -1;
       } else {
-        studyData.push(entry);
+        const { error } = await supabaseClient
+          .from("study_logs")
+          .insert(entry);
+
+        if (error) {
+          alert("Failed to save study record.");
+          console.error(error);
+          return;
+        }
       }
 
-      localStorage.setItem("studyData", JSON.stringify(studyData));
-      renderStudy();
       clearStudyForm();
+      await loadStudy();
     }
 
     function renderStudy() {
@@ -1206,17 +1280,28 @@
       document.getElementById("pageSubtitle").innerText = sectionMeta.study.subtitle;
     }
 
-    function deleteStudy(index) {
+    async function deleteStudy(index) {
       const ok = confirm("Delete this study record?");
       if (!ok) return;
-      studyData.splice(index, 1);
-      localStorage.setItem("studyData", JSON.stringify(studyData));
-      renderStudy();
+
+      const row = studyData[index];
+      const { error } = await supabaseClient
+        .from("study_logs")
+        .delete()
+        .eq("id", row.id);
+
+      if (error) {
+        alert("Failed to delete study record.");
+        console.error(error);
+        return;
+      }
 
       if (editStudyIndex === index) {
         editStudyIndex = -1;
         clearStudyForm();
       }
+
+      await loadStudy();
     }
 
     function clearStudyForm() {
@@ -1227,23 +1312,24 @@
       document.getElementById("studyNote").value = "";
     }
 
-    function init() {
+    async function init() {
       buildWeekOptions();
       buildTrackerTable();
-      loadTracker();
-      loadMock();
-      renderPerformance();
-      renderStudy();
 
-      document.getElementById("weekSelect").addEventListener("change", () => {
-        loadTracker();
-        loadMock();
+      document.getElementById("weekSelect").addEventListener("change", async () => {
+        await loadTracker();
+        await loadMock();
       });
 
       document.getElementById("verbalTotal").addEventListener("input", updateMockPercentages);
       document.getElementById("verbalObtained").addEventListener("input", updateMockPercentages);
       document.getElementById("quantTotal").addEventListener("input", updateMockPercentages);
       document.getElementById("quantObtained").addEventListener("input", updateMockPercentages);
+
+      await loadTracker();
+      await loadMock();
+      await loadStudy();
+      await renderPerformance();
     }
 
     init();
