@@ -1,0 +1,1252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GRE Command Center</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: "Segoe UI", Arial, sans-serif;
+    }
+
+    :root {
+      --bg: #f1f5f9;
+      --card: #ffffff;
+      --line: #e2e8f0;
+      --text: #0f172a;
+      --muted: #64748b;
+      --nav: #1e293b;
+      --nav-hover: #334155;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --danger: #dc2626;
+      --danger-hover: #b91c1c;
+      --secondary: #475569;
+      --secondary-hover: #334155;
+      --success-bg: #ecfdf5;
+      --success-text: #166534;
+      --warn-bg: #fff7ed;
+      --warn-text: #9a3412;
+      --shadow: 0 4px 18px rgba(15, 23, 42, 0.06);
+      --radius: 12px;
+    }
+
+    body {
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+    }
+
+    .sidebar {
+      width: 240px;
+      position: fixed;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      background: var(--nav);
+      color: #fff;
+      padding: 24px 18px;
+    }
+
+    .sidebar h2 {
+      font-size: 22px;
+      margin-bottom: 24px;
+    }
+
+    .nav-item {
+      padding: 12px 14px;
+      border-radius: 10px;
+      margin-bottom: 10px;
+      cursor: pointer;
+      transition: 0.2s ease;
+      user-select: none;
+    }
+
+    .nav-item:hover {
+      background: var(--nav-hover);
+    }
+
+    .nav-item.active {
+      background: var(--primary);
+    }
+
+    .main {
+      margin-left: 240px;
+      width: calc(100% - 240px);
+      padding: 24px;
+      padding-bottom: 84px;
+    }
+
+    .topbar {
+      margin-bottom: 18px;
+    }
+
+    .topbar h1 {
+      font-size: 28px;
+      margin-bottom: 4px;
+    }
+
+    .topbar p {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .section {
+      display: none;
+    }
+
+    .section.active {
+      display: block;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 18px;
+      box-shadow: var(--shadow);
+    }
+
+    .compact-card {
+      padding: 14px 16px;
+    }
+
+    .card h3 {
+      font-size: 18px;
+      margin-bottom: 14px;
+    }
+
+    .label {
+      display: block;
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      color: var(--text);
+    }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 14px;
+      color: var(--text);
+      background: #fff;
+    }
+
+    input[readonly],
+    input:disabled,
+    textarea:disabled {
+      background: #f8fafc;
+      color: var(--muted);
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 90px;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+
+    .study-grid {
+      display: grid;
+      grid-template-columns: 1fr 2fr 1fr 1.2fr;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .full {
+      grid-column: 1 / -1;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th,
+    td {
+      border: 1px solid var(--line);
+      padding: 10px;
+      text-align: center;
+      font-size: 14px;
+    }
+
+    th {
+      background: #f8fafc;
+      font-weight: 700;
+    }
+
+    td:first-child,
+    th:first-child {
+      text-align: left;
+      min-width: 90px;
+    }
+
+    td input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+    }
+
+    td input[id^="done_"] {
+      pointer-events: none;
+    }
+
+    .summary-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+    }
+
+    .summary-box {
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #f8fafc;
+    }
+
+    .summary-title {
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 6px;
+      font-weight: 600;
+    }
+
+    .summary-value {
+      font-size: 28px;
+      font-weight: 800;
+    }
+
+    .muted {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .mock-actions,
+    .study-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 14px;
+    }
+
+    button {
+      border: none;
+      border-radius: 8px;
+      padding: 10px 14px;
+      color: #fff;
+      background: var(--primary);
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 700;
+      transition: 0.2s ease;
+    }
+
+    button:hover {
+      background: var(--primary-hover);
+    }
+
+    .btn-secondary {
+      background: var(--secondary);
+    }
+
+    .btn-secondary:hover {
+      background: var(--secondary-hover);
+    }
+
+    .btn-danger {
+      background: var(--danger);
+    }
+
+    .btn-danger:hover {
+      background: var(--danger-hover);
+    }
+
+    .btn-small {
+      padding: 7px 10px;
+      font-size: 13px;
+    }
+
+    .mock-status {
+      display: inline-block;
+      padding: 7px 10px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 800;
+      background: var(--success-bg);
+      color: var(--success-text);
+      margin-bottom: 12px;
+    }
+
+    .alert-box {
+      padding: 12px 14px;
+      border-radius: 10px;
+      margin-bottom: 10px;
+      font-size: 14px;
+      line-height: 1.5;
+      border: 1px solid transparent;
+    }
+
+    .alert-warn {
+      background: var(--warn-bg);
+      color: var(--warn-text);
+      border-color: #fdba74;
+    }
+
+    .alert-good {
+      background: var(--success-bg);
+      color: var(--success-text);
+      border-color: #86efac;
+    }
+
+    .alert-neutral {
+      background: #eff6ff;
+      color: #1d4ed8;
+      border-color: #93c5fd;
+    }
+
+    .footer {
+      position: fixed;
+      left: 240px;
+      bottom: 0;
+      width: calc(100% - 240px);
+      background: #fff;
+      border-top: 1px solid var(--line);
+      text-align: center;
+      padding: 12px;
+      font-weight: bold;
+    }
+
+    .footer a {
+      text-decoration: none;
+      color: var(--primary);
+      font-weight: bold;
+    }
+
+    canvas {
+      max-height: 360px;
+    }
+
+    @media (max-width: 1024px) {
+      .sidebar {
+        position: static;
+        width: 100%;
+        height: auto;
+      }
+
+      body {
+        display: block;
+      }
+
+      .main {
+        margin-left: 0;
+        width: 100%;
+      }
+
+      .footer {
+        left: 0;
+        width: 100%;
+      }
+
+      .grid-2,
+      .grid-3,
+      .study-grid,
+      .summary-row {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <aside class="sidebar">
+    <h2>GRE Tracker</h2>
+    <div class="nav-item active" onclick="showSection('tracker', event)">📅 Tracker</div>
+    <div class="nav-item" onclick="showSection('performance', event)">📈 Performance</div>
+    <div class="nav-item" onclick="showSection('study', event)">📚 Study Log</div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <h1 id="pageTitle">Tracker</h1>
+      <p id="pageSubtitle">Track daily study and manage mock test.</p>
+    </div>
+
+    <section id="tracker" class="section active">
+      <div class="card compact-card">
+        <div class="grid-2">
+          <div>
+            <label class="label" for="weekSelect">Select Week</label>
+            <select id="weekSelect"></select>
+          </div>
+          <div>
+            <label class="label">Tracker Rule</label>
+            <div class="muted" style="padding-top:10px;">
+              Day 1–4 is marked done when at least 4 of 5 tasks are completed.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Day 1–4 Daily Tracker</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Day</th>
+                <th>Vocab</th>
+                <th>TC</th>
+                <th>SE</th>
+                <th>RC</th>
+                <th>Quant</th>
+                <th>Done</th>
+              </tr>
+            </thead>
+            <tbody id="trackerTable"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Day 5 Mock Test</h3>
+        <div id="mockStatusWrap" style="display:none;">
+          <span class="mock-status">Confirmed for this week</span>
+        </div>
+
+        <div class="grid-2">
+          <div class="card" style="margin-bottom:0;">
+            <h3 style="font-size:16px;">Verbal</h3>
+            <div class="grid-3">
+              <div>
+                <label class="label" for="verbalTotal">Total Marks</label>
+                <input id="verbalTotal" type="number" min="0" placeholder="e.g. 40">
+              </div>
+              <div>
+                <label class="label" for="verbalObtained">Obtained Marks</label>
+                <input id="verbalObtained" type="number" min="0" placeholder="e.g. 32">
+              </div>
+              <div>
+                <label class="label" for="verbalPercent">Percentage</label>
+                <input id="verbalPercent" type="text" readonly placeholder="Auto">
+              </div>
+            </div>
+          </div>
+
+          <div class="card" style="margin-bottom:0;">
+            <h3 style="font-size:16px;">Quant</h3>
+            <div class="grid-3">
+              <div>
+                <label class="label" for="quantTotal">Total Marks</label>
+                <input id="quantTotal" type="number" min="0" placeholder="e.g. 40">
+              </div>
+              <div>
+                <label class="label" for="quantObtained">Obtained Marks</label>
+                <input id="quantObtained" type="number" min="0" placeholder="e.g. 35">
+              </div>
+              <div>
+                <label class="label" for="quantPercent">Percentage</label>
+                <input id="quantPercent" type="text" readonly placeholder="Auto">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top:16px;">
+          <label class="label" for="reviewNote">Review / Mistake Analysis</label>
+          <textarea id="reviewNote" placeholder="Write the key mistakes, weak areas, and observations from this mock test"></textarea>
+        </div>
+
+        <div class="mock-actions">
+          <button id="confirmMockBtn" onclick="confirmMock()">Confirm</button>
+          <button id="editMockBtn" class="btn-secondary" onclick="editMock()">Edit</button>
+          <button id="deleteMockBtn" class="btn-danger" onclick="deleteMock()">Delete</button>
+        </div>
+      </div>
+
+      <div class="summary-row">
+        <div class="summary-box">
+          <div class="summary-title">Completed Days</div>
+          <div class="summary-value" id="completedDays">0</div>
+        </div>
+        <div class="summary-box">
+          <div class="summary-title">Completion Percentage</div>
+          <div class="summary-value" id="completionPercent">0%</div>
+        </div>
+        <div class="summary-box">
+          <div class="summary-title">Current Verbal %</div>
+          <div class="summary-value" id="currentVerbalDisplay">-</div>
+        </div>
+        <div class="summary-box">
+          <div class="summary-title">Current Quant %</div>
+          <div class="summary-value" id="currentQuantDisplay">-</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="performance" class="section">
+      <div class="card">
+        <h3>Performance Trend</h3>
+        <canvas id="performanceChart"></canvas>
+      </div>
+
+      <div class="summary-row">
+        <div class="summary-box">
+          <div class="summary-title">Latest Week</div>
+          <div class="summary-value" id="latestWeek">-</div>
+        </div>
+        <div class="summary-box">
+          <div class="summary-title">Latest Verbal %</div>
+          <div class="summary-value" id="latestVerbal">-</div>
+        </div>
+        <div class="summary-box">
+          <div class="summary-title">Latest Quant %</div>
+          <div class="summary-value" id="latestQuant">-</div>
+        </div>
+        <div class="summary-box">
+          <div class="summary-title">Best Combined Week</div>
+          <div class="summary-value" id="bestWeek">-</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Advanced GRE Prediction</h3>
+        <div class="grid-2">
+          <div class="summary-box">
+            <div class="summary-title">Predicted Verbal Score</div>
+            <div class="summary-value" id="predictedVerbal">-</div>
+          </div>
+          <div class="summary-box">
+            <div class="summary-title">Predicted Quant Score</div>
+            <div class="summary-value" id="predictedQuant">-</div>
+          </div>
+        </div>
+        <div class="muted" style="margin-top:12px;">
+          Prediction uses weighted recent weeks, so newer mock tests influence the score more strongly than older ones.
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Smart Alerts</h3>
+        <div id="alertsWrap"></div>
+      </div>
+
+      <div class="card">
+        <h3>Weekly Mock Results</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Week</th>
+                <th>Verbal Total</th>
+                <th>Verbal Obtained</th>
+                <th>Verbal %</th>
+                <th>Quant Total</th>
+                <th>Quant Obtained</th>
+                <th>Quant %</th>
+              </tr>
+            </thead>
+            <tbody id="performanceTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="study" class="section">
+      <div class="card">
+        <h3>Study Log Entry</h3>
+
+        <div class="study-grid">
+          <div>
+            <label class="label" for="studyType">Type</label>
+            <select id="studyType">
+              <option value="RC">RC</option>
+              <option value="TC">TC</option>
+              <option value="SE">SE</option>
+              <option value="Quant">Quant</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="label" for="studyTopic">Topic</label>
+            <input id="studyTopic" type="text" placeholder="e.g. Passage 3 / Probability / TC Set 2">
+          </div>
+
+          <div>
+            <label class="label" for="studyScore">Score</label>
+            <input id="studyScore" type="text" placeholder="e.g. 8/10 or 80%">
+          </div>
+
+          <div>
+            <label class="label" for="studyResource">Resource</label>
+            <input id="studyResource" type="text" placeholder="e.g. ETS / GregMat / Manhattan">
+          </div>
+
+          <div class="full">
+            <label class="label" for="studyNote">Key Learning</label>
+            <textarea id="studyNote" placeholder="What did you learn from this practice?"></textarea>
+          </div>
+        </div>
+
+        <div class="study-actions">
+          <button onclick="saveStudy()">Save Entry</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Study Records</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Type</th>
+                <th>Topic</th>
+                <th>Score</th>
+                <th>Resource</th>
+                <th>Key Learning</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="studyTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="footer">
+    © <a href="https://mitul-abid.github.io/portfolio" target="_blank">Md Abid Hassan Mitul</a>
+  </div>
+
+  <script>
+    let studyData = JSON.parse(localStorage.getItem("studyData")) || [];
+    let editStudyIndex = -1;
+    let mockConfirmed = false;
+    let performanceChartInstance = null;
+
+    const sectionMeta = {
+      tracker: {
+        title: "Tracker",
+        subtitle: "Track daily study and manage your Day 5 mock test."
+      },
+      performance: {
+        title: "Performance",
+        subtitle: "See trend, prediction, and smart alerts from your weekly mock results."
+      },
+      study: {
+        title: "Study Log",
+        subtitle: "Record practice, resources, and key learning."
+      }
+    };
+
+    function showSection(id, event) {
+      document.querySelectorAll(".section").forEach(sec => sec.classList.remove("active"));
+      document.getElementById(id).classList.add("active");
+
+      document.querySelectorAll(".nav-item").forEach(item => item.classList.remove("active"));
+      if (event) event.currentTarget.classList.add("active");
+
+      document.getElementById("pageTitle").innerText = sectionMeta[id].title;
+      document.getElementById("pageSubtitle").innerText = sectionMeta[id].subtitle;
+
+      if (id === "performance") {
+        renderPerformance();
+      } else if (id === "study") {
+        renderStudy();
+      }
+    }
+
+    function buildWeekOptions() {
+      const weekSelect = document.getElementById("weekSelect");
+      weekSelect.innerHTML = "";
+      for (let i = 1; i <= 12; i++) {
+        weekSelect.innerHTML += `<option value="${i}">Week ${i}</option>`;
+      }
+    }
+
+    function buildTrackerTable() {
+      let html = "";
+      for (let i = 1; i <= 4; i++) {
+        html += `
+          <tr>
+            <td>Day ${i}</td>
+            <td><input type="checkbox" class="task d${i}"></td>
+            <td><input type="checkbox" class="task d${i}"></td>
+            <td><input type="checkbox" class="task d${i}"></td>
+            <td><input type="checkbox" class="task d${i}"></td>
+            <td><input type="checkbox" class="task d${i}"></td>
+            <td><input type="checkbox" id="done_${i}"></td>
+          </tr>
+        `;
+      }
+      document.getElementById("trackerTable").innerHTML = html;
+
+      document.querySelectorAll(".task").forEach(cb => {
+        cb.addEventListener("change", updateTracker);
+      });
+    }
+
+    function updateTracker() {
+      let completedDays = 0;
+
+      for (let i = 1; i <= 4; i++) {
+        const tasks = document.querySelectorAll(".d" + i);
+        const checkedCount = [...tasks].filter(t => t.checked).length;
+        const doneBox = document.getElementById("done_" + i);
+
+        if (checkedCount >= 4) {
+          doneBox.checked = true;
+          completedDays++;
+        } else {
+          doneBox.checked = false;
+        }
+      }
+
+      document.getElementById("completedDays").innerText = completedDays;
+      document.getElementById("completionPercent").innerText = Math.round((completedDays / 4) * 100) + "%";
+
+      saveTracker();
+    }
+
+    function getCurrentWeek() {
+      return document.getElementById("weekSelect").value;
+    }
+
+    function saveTracker() {
+      const taskData = [];
+
+      for (let i = 1; i <= 4; i++) {
+        const tasks = document.querySelectorAll(".d" + i);
+        taskData.push([...tasks].map(t => t.checked));
+      }
+
+      localStorage.setItem("tracker_" + getCurrentWeek(), JSON.stringify({ tasks: taskData }));
+    }
+
+    function loadTracker() {
+      const raw = localStorage.getItem("tracker_" + getCurrentWeek());
+
+      for (let i = 1; i <= 4; i++) {
+        const tasks = document.querySelectorAll(".d" + i);
+        tasks.forEach(t => t.checked = false);
+        document.getElementById("done_" + i).checked = false;
+      }
+
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed.tasks) {
+          for (let i = 1; i <= 4; i++) {
+            const tasks = document.querySelectorAll(".d" + i);
+            tasks.forEach((t, j) => {
+              t.checked = !!parsed.tasks[i - 1][j];
+            });
+          }
+        }
+      }
+
+      updateTracker();
+    }
+
+    function calculatePercent(total, obtained) {
+      const t = Number(total);
+      const o = Number(obtained);
+      if (!t || t <= 0 || isNaN(t) || isNaN(o)) return "";
+      return ((o / t) * 100).toFixed(2);
+    }
+
+    function updateMockPercentages() {
+      const v = calculatePercent(
+        document.getElementById("verbalTotal").value,
+        document.getElementById("verbalObtained").value
+      );
+      const q = calculatePercent(
+        document.getElementById("quantTotal").value,
+        document.getElementById("quantObtained").value
+      );
+
+      document.getElementById("verbalPercent").value = v ? v + "%" : "";
+      document.getElementById("quantPercent").value = q ? q + "%" : "";
+
+      document.getElementById("currentVerbalDisplay").innerText = v ? v + "%" : "-";
+      document.getElementById("currentQuantDisplay").innerText = q ? q + "%" : "-";
+    }
+
+    function getMockKey() {
+      return "mock_week_" + getCurrentWeek();
+    }
+
+    function setMockInputsDisabled(disabled) {
+      document.getElementById("verbalTotal").disabled = disabled;
+      document.getElementById("verbalObtained").disabled = disabled;
+      document.getElementById("quantTotal").disabled = disabled;
+      document.getElementById("quantObtained").disabled = disabled;
+      document.getElementById("reviewNote").disabled = disabled;
+    }
+
+    function updateMockButtons() {
+      document.getElementById("confirmMockBtn").style.display = mockConfirmed ? "none" : "inline-block";
+      document.getElementById("editMockBtn").style.display = mockConfirmed ? "inline-block" : "none";
+      document.getElementById("deleteMockBtn").style.display = mockConfirmed ? "inline-block" : "none";
+      document.getElementById("mockStatusWrap").style.display = mockConfirmed ? "block" : "none";
+    }
+
+    function confirmMock() {
+      const verbalTotal = document.getElementById("verbalTotal").value;
+      const verbalObtained = document.getElementById("verbalObtained").value;
+      const quantTotal = document.getElementById("quantTotal").value;
+      const quantObtained = document.getElementById("quantObtained").value;
+      const reviewNote = document.getElementById("reviewNote").value;
+
+      if (!verbalTotal || !verbalObtained || !quantTotal || !quantObtained) {
+        alert("Please fill in total and obtained marks for both Verbal and Quant.");
+        return;
+      }
+
+      updateMockPercentages();
+
+      const payload = {
+        week: getCurrentWeek(),
+        verbalTotal,
+        verbalObtained,
+        verbalPercent: document.getElementById("verbalPercent").value,
+        quantTotal,
+        quantObtained,
+        quantPercent: document.getElementById("quantPercent").value,
+        reviewNote,
+        confirmed: true
+      };
+
+      localStorage.setItem(getMockKey(), JSON.stringify(payload));
+      mockConfirmed = true;
+      setMockInputsDisabled(true);
+      updateMockButtons();
+      renderPerformance();
+    }
+
+    function editMock() {
+      mockConfirmed = false;
+      setMockInputsDisabled(false);
+      updateMockButtons();
+    }
+
+    function deleteMock() {
+      const ok = confirm("Delete Day 5 mock test for this week?");
+      if (!ok) return;
+
+      localStorage.removeItem(getMockKey());
+
+      document.getElementById("verbalTotal").value = "";
+      document.getElementById("verbalObtained").value = "";
+      document.getElementById("verbalPercent").value = "";
+      document.getElementById("quantTotal").value = "";
+      document.getElementById("quantObtained").value = "";
+      document.getElementById("quantPercent").value = "";
+      document.getElementById("reviewNote").value = "";
+
+      mockConfirmed = false;
+      setMockInputsDisabled(false);
+      updateMockButtons();
+      updateMockPercentages();
+      renderPerformance();
+    }
+
+    function loadMock() {
+      const raw = localStorage.getItem(getMockKey());
+
+      document.getElementById("verbalTotal").value = "";
+      document.getElementById("verbalObtained").value = "";
+      document.getElementById("verbalPercent").value = "";
+      document.getElementById("quantTotal").value = "";
+      document.getElementById("quantObtained").value = "";
+      document.getElementById("quantPercent").value = "";
+      document.getElementById("reviewNote").value = "";
+
+      mockConfirmed = false;
+      setMockInputsDisabled(false);
+
+      if (raw) {
+        const data = JSON.parse(raw);
+        document.getElementById("verbalTotal").value = data.verbalTotal || "";
+        document.getElementById("verbalObtained").value = data.verbalObtained || "";
+        document.getElementById("verbalPercent").value = data.verbalPercent || "";
+        document.getElementById("quantTotal").value = data.quantTotal || "";
+        document.getElementById("quantObtained").value = data.quantObtained || "";
+        document.getElementById("quantPercent").value = data.quantPercent || "";
+        document.getElementById("reviewNote").value = data.reviewNote || "";
+        mockConfirmed = !!data.confirmed;
+        setMockInputsDisabled(mockConfirmed);
+      }
+
+      updateMockButtons();
+      updateMockPercentages();
+    }
+
+    function getAllMockData() {
+      const results = [];
+      for (let i = 1; i <= 12; i++) {
+        const raw = localStorage.getItem("mock_week_" + i);
+        if (raw) {
+          const d = JSON.parse(raw);
+          results.push({
+            week: i,
+            verbalTotal: Number(d.verbalTotal || 0),
+            verbalObtained: Number(d.verbalObtained || 0),
+            verbalPercent: parseFloat(String(d.verbalPercent || "").replace("%", "")) || 0,
+            quantTotal: Number(d.quantTotal || 0),
+            quantObtained: Number(d.quantObtained || 0),
+            quantPercent: parseFloat(String(d.quantPercent || "").replace("%", "")) || 0
+          });
+        }
+      }
+      return results;
+    }
+
+    function clamp(num, min, max) {
+      return Math.max(min, Math.min(max, num));
+    }
+
+    function weightedAverage(values) {
+      if (!values.length) return 0;
+      let total = 0;
+      let weightSum = 0;
+      values.forEach((val, idx) => {
+        const weight = idx + 1;
+        total += val * weight;
+        weightSum += weight;
+      });
+      return total / weightSum;
+    }
+
+    function mapPercentToGRE(percent, section) {
+      const p = clamp(percent, 0, 100);
+      let score;
+      if (section === "verbal") {
+        score = 130 + (p / 100) * 40;
+      } else {
+        score = 130 + (p / 100) * 40;
+      }
+      return Math.round(clamp(score, 130, 170));
+    }
+
+    function buildAlerts(data) {
+      const alerts = [];
+
+      if (!data.length) {
+        alerts.push({
+          type: "neutral",
+          text: "No confirmed mock data yet. Confirm a Day 5 mock to start tracking performance."
+        });
+        return alerts;
+      }
+
+      const latest = data[data.length - 1];
+      const verbalSeries = data.map(d => d.verbalPercent);
+      const quantSeries = data.map(d => d.quantPercent);
+
+      const latestVerbal = latest.verbalPercent;
+      const latestQuant = latest.quantPercent;
+
+      if (latestQuant < 60) {
+        alerts.push({
+          type: "warn",
+          text: "Quant is below 60% in the latest mock. Increase focused Quant review and error correction."
+        });
+      } else if (latestQuant >= 80) {
+        alerts.push({
+          type: "good",
+          text: "Quant is strong in the latest mock. Keep accuracy stable and protect against careless mistakes."
+        });
+      }
+
+      if (latestVerbal < 60) {
+        alerts.push({
+          type: "warn",
+          text: "Verbal is below 60% in the latest mock. Prioritize RC accuracy, TC logic, and vocabulary retention."
+        });
+      } else if (latestVerbal >= 75) {
+        alerts.push({
+          type: "good",
+          text: "Verbal is moving well. Keep vocabulary and passage review consistent."
+        });
+      }
+
+      if (data.length >= 2) {
+        const prev = data[data.length - 2];
+
+        if (latest.verbalPercent > prev.verbalPercent && latest.quantPercent > prev.quantPercent) {
+          alerts.push({
+            type: "good",
+            text: "Both Verbal and Quant improved compared to the previous mock."
+          });
+        }
+
+        if (latest.verbalPercent < prev.verbalPercent && latest.quantPercent < prev.quantPercent) {
+          alerts.push({
+            type: "warn",
+            text: "Both sections dropped from the previous mock. Review fatigue, timing, and mistake patterns."
+          });
+        }
+      }
+
+      const verbalAvg = verbalSeries.reduce((a, b) => a + b, 0) / verbalSeries.length;
+      const quantAvg = quantSeries.reduce((a, b) => a + b, 0) / quantSeries.length;
+
+      if (Math.abs(verbalAvg - quantAvg) >= 15) {
+        const weaker = verbalAvg < quantAvg ? "Verbal" : "Quant";
+        alerts.push({
+          type: "neutral",
+          text: `${weaker} is significantly behind the other section. Balance your weekly focus more carefully.`
+        });
+      }
+
+      return alerts;
+    }
+
+    function renderPerformance() {
+      const data = getAllMockData();
+      const performanceTable = document.getElementById("performanceTable");
+      performanceTable.innerHTML = "";
+
+      let latestWeek = "-";
+      let latestVerbal = "-";
+      let latestQuant = "-";
+      let bestWeek = "-";
+
+      let bestCombined = -1;
+
+      for (let i = 1; i <= 12; i++) {
+        const weekData = data.find(d => d.week === i);
+
+        if (weekData) {
+          performanceTable.innerHTML += `
+            <tr>
+              <td>Week ${i}</td>
+              <td>${weekData.verbalTotal}</td>
+              <td>${weekData.verbalObtained}</td>
+              <td>${weekData.verbalPercent.toFixed(2)}%</td>
+              <td>${weekData.quantTotal}</td>
+              <td>${weekData.quantObtained}</td>
+              <td>${weekData.quantPercent.toFixed(2)}%</td>
+            </tr>
+          `;
+
+          latestWeek = "Week " + i;
+          latestVerbal = weekData.verbalPercent.toFixed(2) + "%";
+          latestQuant = weekData.quantPercent.toFixed(2) + "%";
+
+          const combined = weekData.verbalPercent + weekData.quantPercent;
+          if (combined > bestCombined) {
+            bestCombined = combined;
+            bestWeek = "Week " + i;
+          }
+        } else {
+          performanceTable.innerHTML += `
+            <tr>
+              <td>Week ${i}</td>
+              <td>-</td>
+              <td>-</td>
+              <td>-</td>
+              <td>-</td>
+              <td>-</td>
+              <td>-</td>
+            </tr>
+          `;
+        }
+      }
+
+      document.getElementById("latestWeek").innerText = latestWeek;
+      document.getElementById("latestVerbal").innerText = latestVerbal;
+      document.getElementById("latestQuant").innerText = latestQuant;
+      document.getElementById("bestWeek").innerText = bestWeek;
+
+      const verbalSeries = data.map(d => d.verbalPercent);
+      const quantSeries = data.map(d => d.quantPercent);
+
+      const weightedVerbal = weightedAverage(verbalSeries);
+      const weightedQuant = weightedAverage(quantSeries);
+
+      document.getElementById("predictedVerbal").innerText = mapPercentToGRE(weightedVerbal, "verbal");
+      document.getElementById("predictedQuant").innerText = mapPercentToGRE(weightedQuant, "quant");
+
+      const alerts = buildAlerts(data);
+      const alertsWrap = document.getElementById("alertsWrap");
+      alertsWrap.innerHTML = "";
+      alerts.forEach(alert => {
+        alertsWrap.innerHTML += `<div class="alert-box alert-${alert.type}">${alert.text}</div>`;
+      });
+
+      const labels = data.map(d => "W" + d.week);
+      const verbalChartData = data.map(d => d.verbalPercent);
+      const quantChartData = data.map(d => d.quantPercent);
+
+      const ctx = document.getElementById("performanceChart").getContext("2d");
+
+      if (performanceChartInstance) {
+        performanceChartInstance.destroy();
+      }
+
+      performanceChartInstance = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels,
+          datasets: [
+            {
+              label: "Verbal %",
+              data: verbalChartData,
+              borderWidth: 3,
+              tension: 0.3
+            },
+            {
+              label: "Quant %",
+              data: quantChartData,
+              borderWidth: 3,
+              tension: 0.3
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          scales: {
+            y: {
+              min: 0,
+              max: 100
+            }
+          }
+        }
+      });
+    }
+
+    function saveStudy() {
+      const entry = {
+        date: new Date().toLocaleDateString(),
+        type: document.getElementById("studyType").value,
+        topic: document.getElementById("studyTopic").value.trim(),
+        score: document.getElementById("studyScore").value.trim(),
+        resource: document.getElementById("studyResource").value.trim(),
+        note: document.getElementById("studyNote").value.trim()
+      };
+
+      if (!entry.topic) {
+        alert("Please enter a topic.");
+        return;
+      }
+
+      if (editStudyIndex >= 0) {
+        studyData[editStudyIndex] = entry;
+        editStudyIndex = -1;
+      } else {
+        studyData.push(entry);
+      }
+
+      localStorage.setItem("studyData", JSON.stringify(studyData));
+      renderStudy();
+      clearStudyForm();
+    }
+
+    function renderStudy() {
+      const table = document.getElementById("studyTable");
+      table.innerHTML = "";
+
+      studyData.forEach((d, i) => {
+        table.innerHTML += `
+          <tr>
+            <td>${d.date || "-"}</td>
+            <td>${d.type || "-"}</td>
+            <td>${d.topic || "-"}</td>
+            <td>${d.score || "-"}</td>
+            <td>${d.resource || "-"}</td>
+            <td>${d.note || "-"}</td>
+            <td>
+              <button class="btn-small" onclick="editStudy(${i})">Edit</button>
+              <button class="btn-small btn-danger" onclick="deleteStudy(${i})">Delete</button>
+            </td>
+          </tr>
+        `;
+      });
+    }
+
+    function editStudy(index) {
+      const d = studyData[index];
+      document.getElementById("studyType").value = d.type || "RC";
+      document.getElementById("studyTopic").value = d.topic || "";
+      document.getElementById("studyScore").value = d.score || "";
+      document.getElementById("studyResource").value = d.resource || "";
+      document.getElementById("studyNote").value = d.note || "";
+      editStudyIndex = index;
+
+      document.querySelectorAll(".section").forEach(sec => sec.classList.remove("active"));
+      document.getElementById("study").classList.add("active");
+      document.querySelectorAll(".nav-item").forEach(item => item.classList.remove("active"));
+      document.querySelectorAll(".nav-item")[2].classList.add("active");
+      document.getElementById("pageTitle").innerText = sectionMeta.study.title;
+      document.getElementById("pageSubtitle").innerText = sectionMeta.study.subtitle;
+    }
+
+    function deleteStudy(index) {
+      const ok = confirm("Delete this study record?");
+      if (!ok) return;
+      studyData.splice(index, 1);
+      localStorage.setItem("studyData", JSON.stringify(studyData));
+      renderStudy();
+
+      if (editStudyIndex === index) {
+        editStudyIndex = -1;
+        clearStudyForm();
+      }
+    }
+
+    function clearStudyForm() {
+      document.getElementById("studyType").value = "RC";
+      document.getElementById("studyTopic").value = "";
+      document.getElementById("studyScore").value = "";
+      document.getElementById("studyResource").value = "";
+      document.getElementById("studyNote").value = "";
+    }
+
+    function init() {
+      buildWeekOptions();
+      buildTrackerTable();
+      loadTracker();
+      loadMock();
+      renderPerformance();
+      renderStudy();
+
+      document.getElementById("weekSelect").addEventListener("change", () => {
+        loadTracker();
+        loadMock();
+      });
+
+      document.getElementById("verbalTotal").addEventListener("input", updateMockPercentages);
+      document.getElementById("verbalObtained").addEventListener("input", updateMockPercentages);
+      document.getElementById("quantTotal").addEventListener("input", updateMockPercentages);
+      document.getElementById("quantObtained").addEventListener("input", updateMockPercentages);
+    }
+
+    init();
+  </script>
+</body>
+</html>
