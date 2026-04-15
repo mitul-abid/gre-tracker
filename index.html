@@ -863,7 +863,7 @@
       };
 
       const { error } = await supabaseClient
-        .from("mock_results")
+        .from("mock_result")
         .upsert(payload, { onConflict: "week" });
 
       if (error) {
@@ -889,7 +889,7 @@
       if (!ok) return;
 
       const { error } = await supabaseClient
-        .from("mock_results")
+        .from("mock_result")
         .delete()
         .eq("week", getCurrentWeek());
 
@@ -927,7 +927,7 @@
       setMockInputsDisabled(false);
 
       const { data, error } = await supabaseClient
-        .from("mock_results")
+        .from("mock_result")
         .select("*")
         .eq("week", getCurrentWeek())
         .maybeSingle();
@@ -955,7 +955,7 @@
 
     async function getAllMockData() {
       const { data, error } = await supabaseClient
-        .from("mock_results")
+        .from("mock_result")
         .select("*")
         .order("week", { ascending: true });
 
