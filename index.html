@@ -392,7 +392,7 @@
   <main class="main">
     <div class="topbar">
       <h1 id="pageTitle">Tracker</h1>
-      <p id="pageSubtitle">Track daily study and manage your Day 5 mock test.</p>
+      <p id="pageSubtitle">Track daily study and manage mock test.</p>
     </div>
 
     <section id="tracker" class="section active">
@@ -606,8 +606,8 @@
           </div>
 
           <div class="full">
-            <label class="label" for="studyNote">Key Learning</label>
-            <textarea id="studyNote" placeholder="What did you learn from this practice?"></textarea>
+            <label class="label" for="studyNote">Remarks</label>
+            <textarea id="studyNote" placeholder="Key takeaways, mistakes, or insights..."></textarea>
           </div>
         </div>
 
@@ -618,6 +618,28 @@
 
       <div class="card">
         <h3>Study Records</h3>
+
+        <div style="display:flex; gap:10px; margin-bottom:10px; flex-wrap:wrap;">
+
+            <input type="text" id="searchInput" placeholder="Search Records" 
+                   style="padding:6px; width:220px;" />
+
+            <select id="typeFilter">
+                <option value="">All Type</option>
+                <option value="Quant">Quant</option>
+                <option value="Verbal">Verbal</option>
+                <option value="Vocab">Vocab</option>
+                <option value="Vocab">AWA</option>
+            </select>
+
+            <select id="dateSort">
+                <option value="">Sort by Date</option>
+                <option value="asc">Ascending</option>
+                <option value="desc">Descending</option>
+            </select>
+
+        </div>
+        
         <div class="table-wrap">
           <table>
             <thead>
@@ -627,7 +649,7 @@
                 <th>Topic</th>
                 <th>Score</th>
                 <th>Resource</th>
-                <th>Key Learning</th>
+                <th>Remarks</th>
                 <th>Action</th>
               </tr>
             </thead>
@@ -1331,7 +1353,43 @@
       await loadStudy();
       await renderPerformance();
     }
+    
+    function applyFilters() {
 
+      const search = document.getElementById("searchInput").value.toLowerCase();
+      const type = document.getElementById("typeFilter").value;
+      const sort = document.getElementById("dateSort").value;
+
+      const table = document.getElementById("studyTable");
+      let rows = Array.from(table.querySelectorAll("tr"));
+
+      rows.forEach(row => {
+
+      const text = row.innerText.toLowerCase();
+      const rowType = row.children[1].innerText;
+
+      let show = true;
+
+      if (search && !text.includes(search)) show = false;
+      if (type && rowType !== type) show = false;
+
+      row.style.display = show ? "" : "none";
+    });
+
+      if (sort) {
+        rows.sort((a, b) => {
+        const dateA = new Date(a.children[0].innerText);
+        const dateB = new Date(b.children[0].innerText);
+        return sort === "asc" ? dateA - dateB : dateB - dateA;
+      });
+
+        rows.forEach(row => table.appendChild(row));
+      }
+    }
+
+    document.getElementById("searchInput").addEventListener("keyup", applyFilters);
+    document.getElementById("typeFilter").addEventListener("change", applyFilters);
+    document.getElementById("dateSort").addEventListener("change", applyFilters);
     init();
   </script>
 </body>
