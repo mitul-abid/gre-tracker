@@ -379,6 +379,39 @@
         grid-template-columns: 1fr;
       }
     }
+.filter-bar {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.filter-bar input,
+.filter-bar select {
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+#searchInput {
+  width: 220px;
+}
+
+#typeFilter {
+  width: 150px;
+}
+
+#dateSort {
+  width: 180px;
+}
+
+    .filter-bar input:focus,
+.filter-bar select:focus {
+  border-color: #4a90e2;
+  outline: none;
+}
+    
   </style>
 </head>
 <body>
@@ -619,26 +652,23 @@
       <div class="card">
         <h3>Study Records</h3>
 
-        <div style="display:flex; gap:10px; margin-bottom:10px; flex-wrap:wrap;">
+<div class="filter-bar">
 
-            <input type="text" id="searchInput" placeholder="Search Records" 
-                   style="padding:6px; width:220px;" />
+  <input type="text" id="searchInput" placeholder="Search..." />
 
-            <select id="typeFilter">
-                <option value="">All Type</option>
-                <option value="Quant">Quant</option>
-                <option value="Verbal">Verbal</option>
-                <option value="Vocab">Vocab</option>
-                <option value="Vocab">AWA</option>
-            </select>
+  <select id="typeFilter">
+    <option value="">All Type</option>
+    <option value="Quant">Quant</option>
+    <option value="Verbal">Verbal</option>
+    <option value="Vocab">Vocab</option>
+  </select>
 
-            <select id="dateSort">
-                <option value="">Sort by Date</option>
-                <option value="asc">Ascending</option>
-                <option value="desc">Descending</option>
-            </select>
+  <select id="dateSort">
+    <option value="desc">Date Descending</option>
+    <option value="asc">Date Ascending</option>
+  </select>
 
-        </div>
+</div>
         
         <div class="table-wrap">
           <table>
